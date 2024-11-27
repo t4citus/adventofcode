@@ -6,15 +6,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Map;
 
-public class Day6Test extends AbstractTestBase {
+public class Day7Test extends AbstractTestBase {
 
-    @Value("classpath:/2021/day6.txt")
+    @Value("classpath:/2021/day7.txt")
     private Resource puzzleInputResource;
 
-    @Value("classpath:/2021/day6.sample.txt")
+    @Value("classpath:/2021/day7.sample.txt")
     private Resource samplePuzzleInputResource;
 
     @Test
@@ -23,11 +24,11 @@ public class Day6Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final List<Integer> initialCounts = parseInitialCounts(lines);
-        final long totalCount = populationCountAfterDays(initialCounts, 80);
+        final List<Integer> positions = parsePositions(lines.get(0));
+        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n);
 
         // Then
-        System.out.println("The total population count is " + totalCount);
+        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
     }
 
     @Test
@@ -36,11 +37,11 @@ public class Day6Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
-        final List<Integer> initialCounts = parseInitialCounts(lines);
-        final long totalCount = populationCountAfterDays(initialCounts, 80);
+        final List<Integer> positions = parsePositions(lines.get(0));
+        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n);
 
         // Then
-        System.out.println("The total population count is " + totalCount);
+        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
     }
 
     @Test
@@ -49,11 +50,11 @@ public class Day6Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final List<Integer> initialCounts = parseInitialCounts(lines);
-        final long totalCount = populationCountAfterDays(initialCounts, 256);
+        final List<Integer> positions = parsePositions(lines.get(0));
+        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n * (n + 1) / 2);
 
         // Then
-        System.out.println("The total population count is " + totalCount);
+        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
     }
 
     @Test
@@ -62,41 +63,48 @@ public class Day6Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
-        final List<Integer> initialCounts = parseInitialCounts(lines);
-        final long totalCount = populationCountAfterDays(initialCounts, 256);
+        final List<Integer> positions = parsePositions(lines.get(0));
+        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n * (n + 1) / 2);
 
         // Then
-        System.out.println("The total population count is " + totalCount);
+        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
     }
 
-    private static List<Integer> parseInitialCounts(final List<String> lines) {
-        return Arrays.stream(lines.get(0).split(","))
+    private static List<Integer> parsePositions(final String line) {
+        return Arrays.stream(line.split(","))
                 .map(Integer::parseInt)
                 .toList();
     }
 
-    private static long populationCountAfterDays(final List<Integer> initialCounts, final int days) {
-        if (days < 1) throw new IllegalArgumentException("The days parameter cannot be lower than 1.");
-        final long[] counts = new long[9];
+    private static int cheapestPossibleFuelConsumption(final List<Integer> positions, FuelConsumption fuelConsumption) {
+        final Map<Integer, Integer> map = new HashMap<>();
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
 
-        // init population counts
-        for (Integer c : initialCounts) {
-            counts[c]++;
+        // find min/max
+        for (Integer pos : positions) {
+            final Integer val = map.getOrDefault(pos, 0);
+            map.put(pos, val + 1);
+
+            min = Math.min(min, pos);
+            max = Math.max(max, pos);
         }
 
-        // loop days
-        for (int day = 1; day <= days; day++) {
-            long zeros = counts[0]; // preserve before shifting
-            for (int i = 1; i < counts.length; i++) {
-                counts[i - 1] = counts[i];
-                counts[i] = 0;
+        // loop from min to max
+        int minDelta = Integer.MAX_VALUE;
+        for (int i = min; i <= max; i++) {
+            int totalDelta = 0;
+            for (Map.Entry<Integer, Integer> pos : map.entrySet()) {
+                totalDelta += fuelConsumption.calculate(Math.abs(i - pos.getKey())) * pos.getValue();
             }
-            if (zeros > 0) {
-                counts[6] += zeros;
-                counts[8] += zeros;
-            }
+            minDelta = Math.min(minDelta, totalDelta);
         }
 
-        return Arrays.stream(counts).reduce(Long::sum).orElse(0);
+        return minDelta;
+    }
+
+    @FunctionalInterface
+    interface FuelConsumption {
+        int calculate(int n);
     }
 }

@@ -5,93 +5,137 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
-public class Day1Test extends AbstractTestBase {
+public class Day2Test extends AbstractTestBase {
 
-    @Value("classpath:/2021/day1.txt")
+    @Value("classpath:/2021/day2.txt")
     private Resource puzzleInputResource;
 
     @Test
     public void givenSamplePuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
-        List<Integer> numbers = Arrays.asList(199, 200, 208, 210, 200, 207, 240, 269, 260, 263);
+        List<String> lines = Arrays.asList(
+                "forward 5",
+                "down 5",
+                "forward 8",
+                "up 3",
+                "down 8",
+                "forward 2"
+        );
 
         // When
-        int count = countIncreases(numbers);
+        List<Command> commands = lines.stream()
+                .map(Day2Test::parseCommand)
+                .toList();
+        Pos pos = navigate(commands);
+        int result = pos.x * pos.depth;
 
         // Then
-        System.out.println("The number of increases is " + count);
+        System.out.println("The result of the multiplication is " + result);
     }
 
     @Test
     public void givenPuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
         List<String> lines = readLines(puzzleInputResource);
-        assertLines(lines, 2000);
+        assertLines(lines, 1000);
 
         // When
-        List<Integer> numbers = lines.stream()
-                .map(Integer::parseInt)
+        List<Command> commands = lines.stream()
+                .map(Day2Test::parseCommand)
                 .toList();
-        int count = countIncreases(numbers);
+        Pos pos = navigate(commands);
+        int result = pos.x * pos.depth;
 
         // Then
-        System.out.println("The number of increases is " + count);
+        System.out.println("The result of the multiplication is " + result);
     }
 
     @Test
     public void givenSamplePuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
-        List<Integer> numbers = Arrays.asList(199, 200, 208, 210, 200, 207, 240, 269, 260, 263);
+        List<String> lines = Arrays.asList(
+                "forward 5",
+                "down 5",
+                "forward 8",
+                "up 3",
+                "down 8",
+                "forward 2"
+        );
 
         // When
-        int count = countIncreases(slidingWindow(numbers));
+        List<Command> commands = lines.stream()
+                .map(Day2Test::parseCommand)
+                .toList();
+        Pos pos = navigateByManual(commands);
+        int result = pos.x * pos.depth;
 
         // Then
-        System.out.println("The number of increases is " + count);
+        System.out.println("The result of the multiplication is " + result);
     }
 
     @Test
     public void givenPuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
         List<String> lines = readLines(puzzleInputResource);
-        assertLines(lines, 2000);
+        assertLines(lines, 1000);
 
         // When
-        List<Integer> numbers = lines.stream()
-                .map(Integer::parseInt)
+        List<Command> commands = lines.stream()
+                .map(Day2Test::parseCommand)
                 .toList();
-        int count = countIncreases(slidingWindow(numbers));
+        Pos pos = navigateByManual(commands);
+        long result = (long) pos.x * (long) pos.depth;
 
         // Then
-        System.out.println("The number of increases is " + count);
+        System.out.println("The result of the multiplication is " + result);
     }
 
-    private static int countIncreases(List<Integer> numbers) {
-        int n = numbers.size();
-        int count = 0;
+    private record Command(String action, Integer steps) {}
 
-        for (int i = 0; i < n - 1; i++) {
-            if (numbers.get(i) < numbers.get(i + 1)) {
-                count++;
+    private static Command parseCommand(String line) {
+        String[] parts = line.split(" ");
+        return new Command(parts[0], Integer.parseInt(parts[1]));
+    }
+
+    private record Pos(int x, int depth) {}
+
+    private static Pos navigate(List<Command> commands) {
+        int x = 0, depth = 0;
+
+        for (Command command : commands) {
+            if ("forward".equals(command.action)) {
+                x += command.steps;
+            }
+            else if ("down".equals(command.action)) {
+                depth += command.steps;
+            }
+            else if ("up".equals(command.action)) {
+                depth -= command.steps;
             }
         }
 
-        return count;
+        return new Pos(x, depth);
     }
 
-    private static List<Integer> slidingWindow(List<Integer> numbers) {
-        int n = numbers.size();
-        List<Integer> result = new ArrayList<>();
+    private static Pos navigateByManual(List<Command> commands) {
+        int x = 0, depth = 0, aim = 0;
 
-        for (int i = 0; i < n - 2; i++) {
-            result.add(numbers.get(i) + numbers.get(i + 1) + numbers.get(i + 2));
+        for (Command command : commands) {
+            if ("forward".equals(command.action)) {
+                x += command.steps;
+                depth += aim * command.steps;
+            }
+            else if ("down".equals(command.action)) {
+                aim += command.steps;
+            }
+            else if ("up".equals(command.action)) {
+                aim -= command.steps;
+            }
         }
 
-        return result;
+        return new Pos(x, depth);
     }
 }

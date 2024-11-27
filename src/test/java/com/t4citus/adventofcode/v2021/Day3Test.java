@@ -5,138 +5,204 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class Day2Test extends AbstractTestBase {
+public class Day3Test extends AbstractTestBase {
 
-    @Value("classpath:/2021/day2.txt")
+    @Value("classpath:/2021/day3.txt")
     private Resource puzzleInputResource;
 
     @Test
     public void givenSamplePuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
-        List<String> lines = Arrays.asList(
-                "forward 5",
-                "down 5",
-                "forward 8",
-                "up 3",
-                "down 8",
-                "forward 2"
+        final List<String> lines = Arrays.asList(
+                "00100",
+                "11110",
+                "10110",
+                "10111",
+                "10101",
+                "01111",
+                "00111",
+                "11100",
+                "10000",
+                "11001",
+                "00010",
+                "01010"
         );
 
         // When
-        List<Command> commands = lines.stream()
-                .map(Day2Test::parseCommand)
-                .toList();
-        Pos pos = navigate(commands);
-        int result = pos.x * pos.depth;
+        final Diagnostics diagnostics = gammaAndEpsilonRates(lines);
+        final int powerConsumption = diagnostics.gamma() * diagnostics.epsilon();
 
         // Then
-        System.out.println("The result of the multiplication is " + result);
+        System.out.println("The power consumption is " + powerConsumption);
     }
 
     @Test
     public void givenPuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
-        List<String> lines = readLines(puzzleInputResource);
+        final List<String> lines = readLines(puzzleInputResource);
         assertLines(lines, 1000);
 
         // When
-        List<Command> commands = lines.stream()
-                .map(Day2Test::parseCommand)
-                .toList();
-        Pos pos = navigate(commands);
-        int result = pos.x * pos.depth;
+        final Diagnostics diagnostics = gammaAndEpsilonRates(lines);
+        final int powerConsumption = diagnostics.gamma() * diagnostics.epsilon();
 
         // Then
-        System.out.println("The result of the multiplication is " + result);
+        System.out.println("The power consumption is " + powerConsumption);
     }
 
     @Test
     public void givenSamplePuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
-        List<String> lines = Arrays.asList(
-                "forward 5",
-                "down 5",
-                "forward 8",
-                "up 3",
-                "down 8",
-                "forward 2"
+        final List<String> lines = Arrays.asList(
+                "00100",
+                "11110",
+                "10110",
+                "10111",
+                "10101",
+                "01111",
+                "00111",
+                "11100",
+                "10000",
+                "11001",
+                "00010",
+                "01010"
         );
 
         // When
-        List<Command> commands = lines.stream()
-                .map(Day2Test::parseCommand)
-                .toList();
-        Pos pos = navigateByManual(commands);
-        int result = pos.x * pos.depth;
+        final Diagnostics diagnostics = oxygenGeneratorAndScrubberRatings(lines);
+        final int lifeSupportRating = diagnostics.oxygen() * diagnostics.scrubber();
 
         // Then
-        System.out.println("The result of the multiplication is " + result);
+        System.out.println("The life support rating is " + lifeSupportRating);
     }
 
     @Test
     public void givenPuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
-        List<String> lines = readLines(puzzleInputResource);
+        final List<String> lines = readLines(puzzleInputResource);
         assertLines(lines, 1000);
 
         // When
-        List<Command> commands = lines.stream()
-                .map(Day2Test::parseCommand)
-                .toList();
-        Pos pos = navigateByManual(commands);
-        long result = (long) pos.x * (long) pos.depth;
+        final Diagnostics diagnostics = oxygenGeneratorAndScrubberRatings(lines);
+        final int lifeSupportRating = diagnostics.oxygen() * diagnostics.scrubber();
 
         // Then
-        System.out.println("The result of the multiplication is " + result);
+        System.out.println("The life support rating is " + lifeSupportRating);
     }
 
-    private record Command(String action, Integer steps) {}
+    private record Diagnostics(int first, int second) {
+        int gamma() {
+            return first;
+        }
 
-    private static Command parseCommand(String line) {
-        String[] parts = line.split(" ");
-        return new Command(parts[0], Integer.parseInt(parts[1]));
+        int epsilon() {
+            return second;
+        }
+
+        int oxygen() {
+            return first;
+        }
+
+        int scrubber() {
+            return second;
+        }
     }
 
-    private record Pos(int x, int depth) {}
+    private static Diagnostics gammaAndEpsilonRates(final List<String> binaries) {
+        int n = binaries.get(0).length();
+        int[] zeroCounts = new int[n];
+        int[] oneCounts = new int[n];
 
-    private static Pos navigate(List<Command> commands) {
-        int x = 0, depth = 0;
-
-        for (Command command : commands) {
-            if ("forward".equals(command.action)) {
-                x += command.steps;
-            }
-            else if ("down".equals(command.action)) {
-                depth += command.steps;
-            }
-            else if ("up".equals(command.action)) {
-                depth -= command.steps;
+        for (String binary : binaries) {
+            char[] chars = binary.toCharArray();
+            for (int i = 0; i < chars.length; i++) {
+                if (chars[i] == '1') {
+                    oneCounts[i] += 1;
+                } else {
+                    zeroCounts[i] += 1;
+                }
             }
         }
 
-        return new Pos(x, depth);
-    }
+        int[] gammaBits = new int[n];
+        int[] epsilonBits = new int[n];
 
-    private static Pos navigateByManual(List<Command> commands) {
-        int x = 0, depth = 0, aim = 0;
-
-        for (Command command : commands) {
-            if ("forward".equals(command.action)) {
-                x += command.steps;
-                depth += aim * command.steps;
-            }
-            else if ("down".equals(command.action)) {
-                aim += command.steps;
-            }
-            else if ("up".equals(command.action)) {
-                aim -= command.steps;
+        for (int i = 0; i < n; i++) {
+            if (oneCounts[i] > zeroCounts[i]) {
+                gammaBits[i] = 1;
+                epsilonBits[i] = 0;
+            } else {
+                gammaBits[i] = 0;
+                epsilonBits[i] = 1;
             }
         }
 
-        return new Pos(x, depth);
+        int gamma = Integer.parseInt(toString(gammaBits), 2);
+        int epsilon = Integer.parseInt(toString(epsilonBits), 2);
+        return new Diagnostics(gamma, epsilon);
+    }
+
+    private static String toString(int[] arr) {
+        StringBuilder sb = new StringBuilder();
+        for (int i : arr) {
+            sb.append(i);
+        }
+        return sb.toString();
+    }
+
+    private static Diagnostics oxygenGeneratorAndScrubberRatings(List<String> lines) {
+        final int n = lines.get(0).length();
+        int oxygen = 0;
+        int scrubber = 0;
+
+        List<String> binaries = lines;
+        for (int index = 0; index < n; index++) {
+            Counts counts = countOnesAndZeros(binaries, index);
+            binaries = (counts.ones() >= counts.zeros())
+                    ? filter(binaries, index, '1')
+                    : filter(binaries, index, '0');
+            if (binaries.size() == 1) {
+                oxygen = Integer.parseInt(binaries.get(0), 2);
+            }
+        }
+
+        // reset list
+        binaries = lines;
+        for (int index = 0; index < n; index++) {
+            Counts counts = countOnesAndZeros(binaries, index);
+            binaries = (counts.ones() < counts.zeros())
+                    ? filter(binaries, index, '1')
+                    : filter(binaries, index, '0');
+            if (binaries.size() == 1) {
+                scrubber = Integer.parseInt(binaries.get(0), 2);
+            }
+        }
+
+        return new Diagnostics(oxygen, scrubber);
+    }
+
+    private static List<String> filter(final List<String> binaries, final int index, final char expectedAtIndex) {
+        return binaries.stream()
+                .filter(bin -> bin.charAt(index) == expectedAtIndex)
+                .toList();
+    }
+
+    private record Counts(int ones, int zeros) {
+    }
+
+    private static Counts countOnesAndZeros(final List<String> binaries, final int index) {
+        int zeroCount = 0;
+        int oneCount = 0;
+
+        for (String bin : binaries) {
+            char ch = bin.charAt(index);
+            if (ch == '1') oneCount++;
+            else if (ch == '0') zeroCount++;
+        }
+
+        return new Counts(oneCount, zeroCount);
     }
 }

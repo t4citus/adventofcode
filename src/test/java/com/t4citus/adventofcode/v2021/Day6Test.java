@@ -1,19 +1,20 @@
 package com.t4citus.adventofcode.v2021;
 
 import com.t4citus.adventofcode.AbstractTestBase;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.OptionalInt;
 
-public class Day5Test extends AbstractTestBase {
+public class Day6Test extends AbstractTestBase {
 
-    @Value("classpath:/2021/day5.txt")
+    @Value("classpath:/2021/day6.txt")
     private Resource puzzleInputResource;
 
-    @Value("classpath:/2021/day5.sample.txt")
+    @Value("classpath:/2021/day6.sample.txt")
     private Resource samplePuzzleInputResource;
 
     @Test
@@ -22,12 +23,11 @@ public class Day5Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final List<Path> paths = parsePaths(lines);
-        final Diagram diagram = Diagram.withHorizontalAndVerticalPaths(paths);
-        final long count = diagram.countOverlapping();
+        final List<Integer> initialCounts = parseInitialCounts(lines);
+        final long totalCount = populationCountAfterDays(initialCounts, 80);
 
         // Then
-        System.out.println("The number of overlapping paths is " + count);
+        System.out.println("The total population count is " + totalCount);
     }
 
     @Test
@@ -36,12 +36,11 @@ public class Day5Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
-        final List<Path> paths = parsePaths(lines);
-        final Diagram diagram = Diagram.withHorizontalAndVerticalPaths(paths);
-        final long count = diagram.countOverlapping();
+        final List<Integer> initialCounts = parseInitialCounts(lines);
+        final long totalCount = populationCountAfterDays(initialCounts, 80);
 
         // Then
-        System.out.println("The number of overlapping paths is " + count);
+        System.out.println("The total population count is " + totalCount);
     }
 
     @Test
@@ -50,12 +49,11 @@ public class Day5Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final List<Path> paths = parsePaths(lines);
-        final Diagram diagram = Diagram.withAllPaths(paths);
-        final long count = diagram.countOverlapping();
+        final List<Integer> initialCounts = parseInitialCounts(lines);
+        final long totalCount = populationCountAfterDays(initialCounts, 256);
 
         // Then
-        System.out.println("The number of overlapping paths is " + count);
+        System.out.println("The total population count is " + totalCount);
     }
 
     @Test
@@ -64,130 +62,41 @@ public class Day5Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
-        final List<Path> paths = parsePaths(lines);
-        final Diagram diagram = Diagram.withAllPaths(paths);
-        final long count = diagram.countOverlapping();
+        final List<Integer> initialCounts = parseInitialCounts(lines);
+        final long totalCount = populationCountAfterDays(initialCounts, 256);
 
         // Then
-        System.out.println("The number of overlapping paths is " + count);
+        System.out.println("The total population count is " + totalCount);
     }
 
-    private record Path(int x1, int y1, int x2, int y2) {}
-
-    private static List<Path> parsePaths(final List<String> lines) {
-        return lines.stream()
-                .map(line -> {
-                    String[] parts = line.split(" ");
-                    String[] start = parts[0].split(",");
-                    String[] end = parts[2].split(",");
-                    return new Path(
-                            Integer.parseInt(start[0].trim()),
-                            Integer.parseInt(start[1].trim()),
-                            Integer.parseInt(end[0].trim()),
-                            Integer.parseInt(end[1].trim()));
-                })
+    private static List<Integer> parseInitialCounts(final List<String> lines) {
+        return Arrays.stream(lines.get(0).split(","))
+                .map(Integer::parseInt)
                 .toList();
     }
 
-    private static String key(int x, int y) {
-        return x + ":" + y;
-    }
+    private static long populationCountAfterDays(final List<Integer> initialCounts, final int days) {
+        if (days < 1) throw new IllegalArgumentException("The days parameter cannot be lower than 1.");
+        final long[] counts = new long[9];
 
-    private static class Diagram {
-        private final Map<String, Integer> diagram;
-
-        private Diagram(final Map<String, Integer> diagram) {
-            this.diagram = diagram;
+        // init population counts
+        for (Integer c : initialCounts) {
+            counts[c]++;
         }
 
-        public static Diagram withHorizontalAndVerticalPaths(final List<Path> paths) {
-            final Map<String, Integer> diagram = new HashMap<>();
-            for (Path path : paths) {
-                if (path.x1() == path.x2()) {
-                    final int min = Math.min(path.y1(), path.y2());
-                    final int max = Math.max(path.y1(), path.y2());
-
-                    for (int i = min; i <= max; i++) {
-                        final String key = key(path.x1(), i);
-                        final Integer count = diagram.getOrDefault(key, 0);
-                        diagram.put(key, count + 1);
-                    }
-                }
-                else if (path.y1() == path.y2()) {
-                    final int min = Math.min(path.x1(), path.x2());
-                    final int max = Math.max(path.x1(), path.x2());
-
-                    for (int i = min; i <= max; i++) {
-                        final String key = key(i, path.y1());
-                        final Integer count = diagram.getOrDefault(key, 0);
-                        diagram.put(key, count + 1);
-                    }
-                }
+        // loop days
+        for (int day = 1; day <= days; day++) {
+            long zeros = counts[0]; // preserve before shifting
+            for (int i = 1; i < counts.length; i++) {
+                counts[i - 1] = counts[i];
+                counts[i] = 0;
             }
-            return new Diagram(diagram);
-        }
-
-        public static Diagram withAllPaths(final List<Path> paths) {
-            final Map<String, Integer> diagram = new HashMap<>();
-            for (Path path : paths) {
-                if (path.x1() == path.x2()) {
-                    final int min = Math.min(path.y1(), path.y2());
-                    final int max = Math.max(path.y1(), path.y2());
-
-                    for (int i = min; i <= max; i++) {
-                        final String key = key(path.x1(), i);
-                        final Integer count = diagram.getOrDefault(key, 0);
-                        diagram.put(key, count + 1);
-                    }
-                }
-                else if (path.y1() == path.y2()) {
-                    final int min = Math.min(path.x1(), path.x2());
-                    final int max = Math.max(path.x1(), path.x2());
-
-                    for (int i = min; i <= max; i++) {
-                        final String key = key(i, path.y1());
-                        final Integer count = diagram.getOrDefault(key, 0);
-                        diagram.put(key, count + 1);
-                    }
-                }
-                else if (Math.abs(path.x1() - path.x2()) == Math.abs(path.y1() - path.y2())) {
-                    if (path.x1() < path.x2() && path.y1() < path.y2()) {
-                        path = new Path(path.x2(), path.y2(), path.x1(), path.y1());
-                    }
-                    if (path.x1() > path.x2() && path.y1() > path.y2()) {
-                        final int max = Math.abs(path.x1() - path.x2());
-                        for (int i = 0; i <= max; i++) {
-                            final String key = key(path.x1() - i, path.y1() - i);
-                            final Integer count = diagram.getOrDefault(key, 0);
-                            diagram.put(key, count + 1);
-                        }
-                    }
-                    if (path.x1() > path.x2() && path.y1() < path.y2()) {
-                        path = new Path(path.x2(), path.y2(), path.x1(), path.y1());
-                    }
-                    if (path.x1() < path.x2() && path.y1() > path.y2()) {
-                        final int max = Math.abs(path.x1() - path.x2());
-                        for (int i = 0; i <= max; i++) {
-                            final String key = key(path.x1() + i, path.y1() - i);
-                            final Integer count = diagram.getOrDefault(key, 0);
-                            diagram.put(key, count + 1);
-                        }
-                    }
-                }
+            if (zeros > 0) {
+                counts[6] += zeros;
+                counts[8] += zeros;
             }
-            return new Diagram(diagram);
         }
 
-        public long countOverlapping() {
-            return diagram.values()
-                    .stream()
-                    .filter(v -> v >= 2)
-                    .count();
-        }
-
-        @Override
-        public String toString() {
-            return this.diagram.toString();
-        }
+        return Arrays.stream(counts).reduce(Long::sum).orElse(0);
     }
 }

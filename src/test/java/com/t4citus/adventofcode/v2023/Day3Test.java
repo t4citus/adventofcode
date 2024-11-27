@@ -5,123 +5,196 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.function.ToIntFunction;
+import java.util.*;
+import java.util.stream.Collectors;
 
-public class Day2Test extends AbstractTestBase {
+public class Day3Test extends AbstractTestBase {
 
-    @Value("classpath:/2023/day2.txt")
+    @Value("classpath:/2023/day3.txt")
     private Resource puzzleInputResource;
 
     @Test
     public void givenSamplePuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
         List<String> lines = Arrays.asList(
-                "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green",
-                "Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue",
-                "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red",
-                "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red",
-                "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green"
+                "467..114..",
+                "...*......",
+                "..35..633.",
+                "......#...",
+                "617*......",
+                ".....+.58.",
+                "..592.....",
+                "......755.",
+                "...$.*....",
+                ".664.598.."
         );
 
         // When
-        Integer idSum = lines.stream()
-                .map(Game::fromString)
-                .filter(game -> game.maxRed() <= 12 && game.maxGreen() <= 13 && game.maxBlue() <= 14)
-                .map(Game::id)
+        int sum = findNumbersWithAdjacents(lines, findSymbols(lines, null)).stream()
                 .reduce(Integer::sum)
                 .orElse(0);
 
         // Then
-        System.out.println(idSum);
+        System.out.println(sum);
     }
 
-    public record Round(int red, int green, int blue) {
-        static Round fromString(String s) {
-            int r = 0, g = 0, b = 0;
-            for (String outer : s.split(",")) {
-                String[] inner = outer.trim().split(" ");
-                int amount = Integer.parseInt(inner[0].trim());
-                String color = inner[1].trim();
-                switch (color) {
-                    case "red" -> r = amount;
-                    case "green" -> g = amount;
-                    case "blue" -> b = amount;
-                    default -> throw new IllegalStateException("Unsupported color.");
+    public record Coord(int x, int y) {
+        List<Coord> adjacents() {
+            return List.of(
+                    new Coord(x - 1, y - 1),
+                    new Coord(x, y - 1),
+                    new Coord(x + 1, y - 1),
+                    new Coord(x - 1, y),
+                    new Coord(x + 1, y),
+                    new Coord(x - 1, y + 1),
+                    new Coord(x, y + 1),
+                    new Coord(x + 1, y + 1)
+            );
+        }
+    }
+
+    public boolean isSymbol(char ch) {
+        return ch != '.' && !Character.isDigit(ch);
+    }
+
+    public Set<Coord> findSymbols(List<String> lines, Character onlyThis) {
+        Set<Coord> symbols = new HashSet<>();
+        for (int y = 0; y < lines.size(); y++) {
+            String line = lines.get(y);
+            for (int x = 0; x < line.length(); x++) {
+                char ch = line.charAt(x);
+                if (isSymbol(ch)) {
+                    if (onlyThis == null || onlyThis == ch)
+                        symbols.add(new Coord(x, y));
                 }
             }
-            return new Round(r, g, b);
         }
+        return symbols;
     }
 
-    public record Game(int id, List<Round> rounds) {
-        static Game fromString(String s) {
-            String[] outer = s.split(":");
-            String left = outer[0].trim();
-            String right = outer[1].trim();
-            int id = Integer.parseInt(left.split(" ")[1]);
-            List<Round> rounds = Arrays.stream(right.split(";")).map(Round::fromString).toList();
-            return new Game(id, rounds);
+    public Set<Coord> findDigits(List<String> lines) {
+        Set<Coord> digits = new HashSet<>();
+        for (int y = 0; y < lines.size(); y++) {
+            String line = lines.get(y);
+            for (int x = 0; x < line.length(); x++) {
+                char ch = line.charAt(x);
+                if (Character.isDigit(ch)) {
+                    digits.add(new Coord(x, y));
+                }
+            }
+        }
+        return digits;
+    }
+
+    public List<Integer> findNumbersWithAdjacents (List<String> lines, Set<Coord> symbols) {
+        List<Integer> res = new ArrayList<>();
+
+        for (int y = 0; y < lines.size(); y++) {
+            String line = lines.get(y);
+            StringBuilder number = null;
+            boolean hasAdjacent = false;
+            for (int x = 0; x < line.length(); x++) {
+                char ch = line.charAt(x);
+                Coord coord = new Coord(x, y);
+
+                if (Character.isDigit(ch)) {
+                    if (number == null) {
+                        number = new StringBuilder();
+                    }
+                    number.append(ch);
+
+                    Coord first = coord.adjacents().stream()
+                            .filter(symbols::contains)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (first != null && !hasAdjacent) {
+                        hasAdjacent = true;
+                    }
+                } else {
+                    if (number != null) {
+                        if (hasAdjacent) res.add(Integer.parseInt(number.toString()));
+                        number = null;
+                        hasAdjacent = false;
+                    }
+                }
+            }
+
+            if (number != null && hasAdjacent) {
+                res.add(Integer.parseInt(number.toString()));
+            }
         }
 
-        public int maxRed() {
-            return maxByColor(Round::red);
-        }
-
-        public int maxGreen() {
-            return maxByColor(Round::green);
-        }
-
-        public int maxBlue() {
-            return maxByColor(Round::blue);
-        }
-
-        public int maxByColor(ToIntFunction<Round> condition) {
-            return rounds.stream().mapToInt(condition).max().orElse(0);
-        }
+        return res;
     }
 
     @Test
     public void givenPuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
         List<String> lines = readLines(puzzleInputResource);
-        assertLines(lines, 100);
+        assertLines(lines, 140);
 
         // When
-        Integer idSum = lines.stream()
-                .map(Game::fromString)
-                .filter(game -> game.maxRed() <= 12 && game.maxGreen() <= 13 && game.maxBlue() <= 14)
-                .map(Game::id)
+        int sum = findNumbersWithAdjacents(lines, findSymbols(lines, null)).stream()
                 .reduce(Integer::sum)
                 .orElse(0);
 
         // Then
-        System.out.println(idSum);
+        System.out.println(sum);
     }
 
     @Test
     public void givenSamplePuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
         List<String> lines = Arrays.asList(
-                "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green",
-                "Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue",
-                "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red",
-                "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red",
-                "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green"
+                "467..114..",
+                "...*......",
+                "..35..633.",
+                "......#...",
+                "617*......",
+                ".....+.58.",
+                "..592.....",
+                "......755.",
+                "...$.*....",
+                ".664.598.."
         );
 
         // When
-        Integer powSum = lines.stream()
-                .map(Game::fromString)
-                .map(game -> game.maxRed() * game.maxGreen() * game.maxBlue())
-                .reduce(Integer::sum)
-                .orElse(0);
+        Set<Coord> digits = findDigits(lines);
+        Set<Coord> gears = findSymbols(lines, '*').stream()
+                .filter(gear -> {
+                    int cnt = 0;
+                    Coord top = new Coord(gear.x(), gear.y() - 1);
+                    Coord bottom = new Coord(gear.x(), gear.y() + 1);
+                    Coord left = new Coord(gear.x() - 1, gear.y());
+                    Coord right = new Coord(gear.x() + 1, gear.y());
+                    Coord topLeft = new Coord(gear.x() - 1, gear.y() - 1);
+                    Coord topRight = new Coord(gear.x() + 1, gear.y() - 1);
+                    Coord bottomLeft = new Coord(gear.x() - 1, gear.y() + 1);
+                    Coord bottomRight = new Coord(gear.x() + 1, gear.y() + 1);
+
+                    if (digits.contains(left)) cnt++;
+                    if (digits.contains(right)) cnt++;
+                    if (digits.contains(top)) {
+                        cnt++;
+                    } else {
+                        if (digits.contains(topLeft)) cnt++;
+                        if (digits.contains(topRight)) cnt++;
+                    }
+                    if (digits.contains(bottom)) {
+                        cnt++;
+                    } else {
+                        if (digits.contains(bottomLeft)) cnt++;
+                        if (digits.contains(bottomRight)) cnt++;
+                    }
+
+                    return cnt == 2;
+                })
+                .collect(Collectors.toSet());
+
+        gears.forEach(System.out::println);
 
         // Then
-        System.out.println(powSum);
     }
 
     @Test
@@ -131,13 +204,7 @@ public class Day2Test extends AbstractTestBase {
         assertLines(lines, 100);
 
         // When
-        Integer powSum = lines.stream()
-                .map(Game::fromString)
-                .map(game -> game.maxRed() * game.maxGreen() * game.maxBlue())
-                .reduce(Integer::sum)
-                .orElse(0);
 
         // Then
-        System.out.println(powSum);
     }
 }

@@ -5,17 +5,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class Day7Test extends AbstractTestBase {
+public class Day8Test extends AbstractTestBase {
 
-    @Value("classpath:/2021/day7.txt")
+    @Value("classpath:/2021/day8.txt")
     private Resource puzzleInputResource;
 
-    @Value("classpath:/2021/day7.sample.txt")
+    @Value("classpath:/2021/day8.sample.txt")
     private Resource samplePuzzleInputResource;
 
     @Test
@@ -24,11 +21,16 @@ public class Day7Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final List<Integer> positions = parsePositions(lines.get(0));
-        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n);
+        final List<Signals> signals = lines.stream()
+                .map(Day8Test::parseLine)
+                .toList();
+        final Integer count = signals.stream()
+                .map(Signals::expectedDigitsCount)
+                .reduce(Integer::sum)
+                .orElse(0);
 
         // Then
-        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
+        System.out.println("The total count of expected digits is " + count);
     }
 
     @Test
@@ -37,11 +39,16 @@ public class Day7Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
-        final List<Integer> positions = parsePositions(lines.get(0));
-        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n);
+        final List<Signals> signals = lines.stream()
+                .map(Day8Test::parseLine)
+                .toList();
+        final Integer count = signals.stream()
+                .map(Signals::expectedDigitsCount)
+                .reduce(Integer::sum)
+                .orElse(0);
 
         // Then
-        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
+        System.out.println("The total count of expected digits is " + count);
     }
 
     @Test
@@ -50,11 +57,14 @@ public class Day7Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final List<Integer> positions = parsePositions(lines.get(0));
-        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n * (n + 1) / 2);
+        final Integer totalSum = lines.stream()
+                .map(Day8Test::parseLine)
+                .map(Signals::outputNumber)
+                .reduce(Integer::sum)
+                .orElseThrow(IllegalStateException::new);
 
         // Then
-        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
+        System.out.println("The total number is " + totalSum);
     }
 
     @Test
@@ -63,48 +73,139 @@ public class Day7Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
-        final List<Integer> positions = parsePositions(lines.get(0));
-        int fuelConsumption = cheapestPossibleFuelConsumption(positions, n -> n * (n + 1) / 2);
+        final Integer totalSum = lines.stream()
+                .map(Day8Test::parseLine)
+                .map(Signals::outputNumber)
+                .reduce(Integer::sum)
+                .orElseThrow(IllegalStateException::new);
 
         // Then
-        System.out.println("The cheapest possible fuel consumption is " + fuelConsumption);
+        System.out.println("The total number is " + totalSum);
     }
 
-    private static List<Integer> parsePositions(final String line) {
-        return Arrays.stream(line.split(","))
-                .map(Integer::parseInt)
+    private static Signals parseLine(final String line) {
+        final String[] parts = line.split("\\|");
+
+        List<String> uniqueSignals = Arrays.stream(parts[0].trim().split(" "))
+                .map(String::trim)
                 .toList();
+
+        List<String> outputSignals = Arrays.stream(parts[1].trim().split(" "))
+                .map(String::trim)
+                .toList();
+
+        return new Signals(uniqueSignals, outputSignals);
     }
 
-    private static int cheapestPossibleFuelConsumption(final List<Integer> positions, FuelConsumption fuelConsumption) {
-        final Map<Integer, Integer> map = new HashMap<>();
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-
-        // find min/max
-        for (Integer pos : positions) {
-            final Integer val = map.getOrDefault(pos, 0);
-            map.put(pos, val + 1);
-
-            min = Math.min(min, pos);
-            max = Math.max(max, pos);
-        }
-
-        // loop from min to max
-        int minDelta = Integer.MAX_VALUE;
-        for (int i = min; i <= max; i++) {
-            int totalDelta = 0;
-            for (Map.Entry<Integer, Integer> pos : map.entrySet()) {
-                totalDelta += fuelConsumption.calculate(Math.abs(i - pos.getKey())) * pos.getValue();
+    private record Signals(List<String> uniqueSignals, List<String> outputSignals) {
+        public int expectedDigitsCount() {
+            // 1 = 2 digits, 4 = 4 digits, 7 = 3 digits, or 8 = 7 digits
+            Set<Integer> digitLengths = Set.of(2, 4, 3, 7);
+            int count = 0;
+            for (String signal : outputSignals) {
+                if (digitLengths.contains(signal.length())) {
+                    count++;
+                }
             }
-            minDelta = Math.min(minDelta, totalDelta);
+            return count;
         }
 
-        return minDelta;
+        public int outputNumber() {
+            final Map<Integer, List<Set<String>>> sortedByLength = new HashMap<>();
+
+            // init
+            for (String uniqueSignal : uniqueSignals()) {
+                int len = uniqueSignal.length();
+                List<Set<String>> stored = sortedByLength.getOrDefault(len, new ArrayList<>());
+                stored.add(Set.of(uniqueSignal.split("")));
+                sortedByLength.put(len, stored);
+            }
+
+            final Set<String> one = sortedByLength.get(2).get(0);
+            final Set<String> four = sortedByLength.get(4).get(0);
+            final Set<String> seven = sortedByLength.get(3).get(0);
+            final Set<String> eight = sortedByLength.get(7).get(0);
+
+            // 9 is the only number with length of 6 that contains all elements from 4
+            final Set<String> nine = sortedByLength.get(6).stream()
+                    .filter(candidate -> candidate.containsAll(four))
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
+
+            // 3 is the only number with length of 5 that contains all elements from 7
+            final Set<String> three = sortedByLength.get(5).stream()
+                    .filter(candidate -> candidate.containsAll(seven))
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
+
+            // 5 is the only number with length of 5 that contains all elements of 9 minus the elements of 1
+            final Set<String> five = sortedByLength.get(5).stream()
+                    .filter(candidate -> candidate.containsAll(new FluentSet(nine).minus(one).get()))
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
+            sortedByLength.get(5).remove(five);
+
+            // 6 is the only number with length of 6 that contains all elements of 8 minus the elements of 1
+            final Set<String> six = sortedByLength.get(6).stream()
+                    .filter(candidate -> candidate.containsAll(new FluentSet(eight).minus(one).get()))
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
+            sortedByLength.get(6).remove(six);
+
+            // 0 is the only number with length of 6 that contains all elements of 8 minus the elements of 4
+            // plus the elements of 1
+            final Set<String> zero = sortedByLength.get(6).stream()
+                    .filter(candidate -> candidate.containsAll(new FluentSet(eight).minus(four).plus(one).get()))
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
+
+            // 2 is the only number with the length of 5 that contains all elements of 8 minus the elements of 4
+            final Set<String> two = sortedByLength.get(5).stream()
+                    .filter(candidate -> candidate.containsAll(new FluentSet(eight).minus(four).get()))
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
+
+            // resolve output number
+            int outputNumber = 0;
+            final List<Set<String>> values = List.of(zero, one, two, three, four, five, six, seven, eight, nine);
+            final int[] multiplier = new int[] { 1000, 100, 10, 1 };
+
+            for (int i = 0; i < outputSignals().size(); i++) {
+                final Set<String> target = Set.of(outputSignals().get(i).split(""));
+                for (int j = 0; j < values.size(); j++) {
+                    if (target.equals(values.get(j))) {
+                        outputNumber += j * multiplier[i];
+                        break;
+                    }
+                }
+            }
+
+            return outputNumber;
+        }
     }
 
-    @FunctionalInterface
-    interface FuelConsumption {
-        int calculate(int n);
+    /**
+     * Fluent interface for a set to ease inline initialization
+     */
+    private static class FluentSet {
+        private final Set<String> set;
+
+        public FluentSet(final Set<String> initialSet) {
+            this.set = new HashSet<>(initialSet);
+        }
+
+        public FluentSet plus(final Set<String> plusSet) {
+            set.addAll(plusSet);
+            return this;
+        }
+
+        public FluentSet minus(final Set<String> minusSet) {
+            set.removeAll(minusSet);
+            return this;
+        }
+
+        public Set<String> get() {
+            return set;
+        }
     }
 }

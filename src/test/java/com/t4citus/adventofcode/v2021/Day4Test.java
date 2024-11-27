@@ -5,204 +5,228 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
-public class Day3Test extends AbstractTestBase {
+public class Day4Test extends AbstractTestBase {
 
-    @Value("classpath:/2021/day3.txt")
+    @Value("classpath:/2021/day4.txt")
     private Resource puzzleInputResource;
+
+    @Value("classpath:/2021/day4.sample.txt")
+    private Resource samplePuzzleInputResource;
 
     @Test
     public void givenSamplePuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
-        final List<String> lines = Arrays.asList(
-                "00100",
-                "11110",
-                "10110",
-                "10111",
-                "10101",
-                "01111",
-                "00111",
-                "11100",
-                "10000",
-                "11001",
-                "00010",
-                "01010"
-        );
+        final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final Diagnostics diagnostics = gammaAndEpsilonRates(lines);
-        final int powerConsumption = diagnostics.gamma() * diagnostics.epsilon();
+        final Game game = parseLines(lines);
+        final int finalScore = playFirstBingoWins(game);
 
         // Then
-        System.out.println("The power consumption is " + powerConsumption);
+        System.out.println("The final score is " + finalScore);
     }
 
     @Test
     public void givenPuzzleInput_whenSolve1_thenReturnsAsExpected() {
         // Given
         final List<String> lines = readLines(puzzleInputResource);
-        assertLines(lines, 1000);
 
         // When
-        final Diagnostics diagnostics = gammaAndEpsilonRates(lines);
-        final int powerConsumption = diagnostics.gamma() * diagnostics.epsilon();
+        final Game game = parseLines(lines);
+        final int finalScore = playFirstBingoWins(game);
 
         // Then
-        System.out.println("The power consumption is " + powerConsumption);
+        System.out.println("The final score is " + finalScore);
     }
 
     @Test
     public void givenSamplePuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
-        final List<String> lines = Arrays.asList(
-                "00100",
-                "11110",
-                "10110",
-                "10111",
-                "10101",
-                "01111",
-                "00111",
-                "11100",
-                "10000",
-                "11001",
-                "00010",
-                "01010"
-        );
+        final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
-        final Diagnostics diagnostics = oxygenGeneratorAndScrubberRatings(lines);
-        final int lifeSupportRating = diagnostics.oxygen() * diagnostics.scrubber();
+        final Game game = parseLines(lines);
+        final int finalScore = playLastBingoWins(game);
 
         // Then
-        System.out.println("The life support rating is " + lifeSupportRating);
+        System.out.println("The final score is " + finalScore);
     }
 
     @Test
     public void givenPuzzleInput_whenSolve2_thenReturnsAsExpected() {
         // Given
         final List<String> lines = readLines(puzzleInputResource);
-        assertLines(lines, 1000);
 
         // When
-        final Diagnostics diagnostics = oxygenGeneratorAndScrubberRatings(lines);
-        final int lifeSupportRating = diagnostics.oxygen() * diagnostics.scrubber();
+        final Game game = parseLines(lines);
+        final int finalScore = playLastBingoWins(game);
 
         // Then
-        System.out.println("The life support rating is " + lifeSupportRating);
+        System.out.println("The final score is " + finalScore);
     }
 
-    private record Diagnostics(int first, int second) {
-        int gamma() {
-            return first;
-        }
+    private static class Bingo {
+        private final Map<String, FieldValue> fields = new HashMap<>();
+        private boolean hasBingo = false;
 
-        int epsilon() {
-            return second;
-        }
-
-        int oxygen() {
-            return first;
-        }
-
-        int scrubber() {
-            return second;
-        }
-    }
-
-    private static Diagnostics gammaAndEpsilonRates(final List<String> binaries) {
-        int n = binaries.get(0).length();
-        int[] zeroCounts = new int[n];
-        int[] oneCounts = new int[n];
-
-        for (String binary : binaries) {
-            char[] chars = binary.toCharArray();
-            for (int i = 0; i < chars.length; i++) {
-                if (chars[i] == '1') {
-                    oneCounts[i] += 1;
-                } else {
-                    zeroCounts[i] += 1;
+        public Bingo(final List<String> rows) {
+            for (int row = 1; row <= rows.size(); row++) {
+                List<Integer> columns = Arrays.stream(rows.get(row - 1).split(" "))
+                        .filter(s -> s != null && !s.trim().equals(""))
+                        .map(Integer::parseInt)
+                        .toList();
+                for (int col = 1; col <= columns.size(); col++) {
+                    addField(row, col, columns.get(col - 1));
                 }
             }
         }
 
-        int[] gammaBits = new int[n];
-        int[] epsilonBits = new int[n];
-
-        for (int i = 0; i < n; i++) {
-            if (oneCounts[i] > zeroCounts[i]) {
-                gammaBits[i] = 1;
-                epsilonBits[i] = 0;
-            } else {
-                gammaBits[i] = 0;
-                epsilonBits[i] = 1;
-            }
+        public void addField(final int row, final int col, final int val) {
+            fields.put(key(row, col), new FieldValue(val, false));
         }
 
-        int gamma = Integer.parseInt(toString(gammaBits), 2);
-        int epsilon = Integer.parseInt(toString(epsilonBits), 2);
-        return new Diagnostics(gamma, epsilon);
+        public boolean markFieldAndVerify(final int val) {
+            for (int row = 1; row <= 5; row++) {
+                for (int col = 1; col <= 5; col++) {
+                    FieldValue fieldValue = fields.get(key(row, col));
+                    if (fieldValue.getValue() == val) {
+                        fieldValue.setChecked(true);
+
+                        // check row
+                        boolean isBingo = true;
+                        for (int i = 1; i <= 5; i++) {
+                            if (fields.get(key(row, i)).isNotChecked()) {
+                                isBingo = false;
+                            }
+                        }
+
+                        if (isBingo) return true;
+
+                        // check column
+                        isBingo = true;
+                        for (int i = 1; i <= 5; i++) {
+                            if (fields.get(key(i, col)).isNotChecked()) {
+                                isBingo = false;
+                            }
+                        }
+
+                        if (isBingo) return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public String key(final int row, final int col) {
+            return row + ":" + col;
+        }
+
+        public int sumOfUnchecked() {
+            return fields.values()
+                    .stream()
+                    .filter(FieldValue::isNotChecked)
+                    .map(FieldValue::getValue)
+                    .reduce(Integer::sum)
+                    .orElse(0);
+        }
+
+        public boolean hasBingo() {
+            return hasBingo;
+        }
+
+        public void setHasBingo(boolean hasBingo) {
+            this.hasBingo = hasBingo;
+        }
+
+        @Override
+        public String toString() {
+            return fields.toString();
+        }
     }
 
-    private static String toString(int[] arr) {
-        StringBuilder sb = new StringBuilder();
-        for (int i : arr) {
-            sb.append(i);
+    private static class FieldValue {
+        final int value;
+        boolean isChecked;
+
+        public FieldValue(int value, boolean isChecked) {
+            this.value = value;
+            this.isChecked = isChecked;
         }
-        return sb.toString();
+
+        public int getValue() {
+            return value;
+        }
+
+        public boolean isNotChecked() {
+            return !isChecked;
+        }
+
+        public void setChecked(boolean checked) {
+            isChecked = checked;
+        }
     }
 
-    private static Diagnostics oxygenGeneratorAndScrubberRatings(List<String> lines) {
-        final int n = lines.get(0).length();
-        int oxygen = 0;
-        int scrubber = 0;
-
-        List<String> binaries = lines;
-        for (int index = 0; index < n; index++) {
-            Counts counts = countOnesAndZeros(binaries, index);
-            binaries = (counts.ones() >= counts.zeros())
-                    ? filter(binaries, index, '1')
-                    : filter(binaries, index, '0');
-            if (binaries.size() == 1) {
-                oxygen = Integer.parseInt(binaries.get(0), 2);
-            }
-        }
-
-        // reset list
-        binaries = lines;
-        for (int index = 0; index < n; index++) {
-            Counts counts = countOnesAndZeros(binaries, index);
-            binaries = (counts.ones() < counts.zeros())
-                    ? filter(binaries, index, '1')
-                    : filter(binaries, index, '0');
-            if (binaries.size() == 1) {
-                scrubber = Integer.parseInt(binaries.get(0), 2);
-            }
-        }
-
-        return new Diagnostics(oxygen, scrubber);
+    private record Game(List<Integer> picks, List<Bingo> allFields) {
     }
 
-    private static List<String> filter(final List<String> binaries, final int index, final char expectedAtIndex) {
-        return binaries.stream()
-                .filter(bin -> bin.charAt(index) == expectedAtIndex)
+    private static Game parseLines(final List<String> lines) {
+        final List<Integer> picks = Arrays.stream(lines.get(0).split(","))
+                .map(Integer::parseInt)
                 .toList();
-    }
 
-    private record Counts(int ones, int zeros) {
-    }
+        final List<Bingo> allFields = new ArrayList<>();
+        final int max = lines.size();
+        int from = 2;
+        int to = from + 5;
 
-    private static Counts countOnesAndZeros(final List<String> binaries, final int index) {
-        int zeroCount = 0;
-        int oneCount = 0;
-
-        for (String bin : binaries) {
-            char ch = bin.charAt(index);
-            if (ch == '1') oneCount++;
-            else if (ch == '0') zeroCount++;
+        while (to <= max) {
+            allFields.add(new Bingo(lines.subList(from, to)));
+            from = to + 1;
+            to = from + 5;
         }
 
-        return new Counts(oneCount, zeroCount);
+        return new Game(picks, allFields);
+    }
+
+    private static int playFirstBingoWins(final Game game) {
+        final List<Integer> picks = game.picks();
+        final List<Bingo> allFields = game.allFields();
+
+        for (Integer pick : picks) {
+            for (Bingo field : allFields) {
+                boolean hasBingo = field.markFieldAndVerify(pick);
+                if (hasBingo) {
+                    return pick * field.sumOfUnchecked();
+                }
+            }
+        }
+
+        throw new IllegalStateException("No bingo found.");
+    }
+
+    private static int playLastBingoWins(final Game game) {
+        final List<Integer> picks = game.picks();
+        final List<Bingo> allFields = game.allFields();
+        int bingoCount = 0;
+
+        for (Integer pick : picks) {
+            for (Bingo field : allFields) {
+                if (!field.hasBingo()) {
+                    boolean hasBingo = field.markFieldAndVerify(pick);
+                    if (hasBingo) {
+                        field.setHasBingo(true);
+                        bingoCount++;
+
+                        if (bingoCount == allFields.size())
+                            return pick * field.sumOfUnchecked();
+                    }
+                }
+            }
+        }
+
+        throw new IllegalStateException("No bingo found.");
     }
 }
