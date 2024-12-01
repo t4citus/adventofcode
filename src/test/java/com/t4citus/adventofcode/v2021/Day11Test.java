@@ -22,60 +22,10 @@ public class Day11Test extends AbstractTestBase {
 
         // When
         final Map<Point, Integer> grid = initGrid(lines);
-        printGrid(grid, 0);
-
-        for (int step = 1; step <= 2; step++) {
-            Queue<Point> queue = new LinkedList<>();
-            Set<Point> flashed = new HashSet<>();
-
-            // increase all levels by '1'
-            for (Point p : grid.keySet()) {
-                int newLevel = grid.getOrDefault(p, 0) + 1;
-                grid.put(p, newLevel);
-
-                if (newLevel > 9) {
-                    queue.add(p);
-                }
-            }
-
-            // handle flashes
-            while (!queue.isEmpty()) {
-                Point curr = queue.poll(); // remove from queue
-                int level = grid.getOrDefault(curr, 0);
-
-                if (flashed.contains(curr))
-                    break;
-
-                if (level > 9) {
-                    // flash
-                    grid.put(curr, 0);
-                    flashed.add(curr);
-
-                    // add neighbors to queue
-                    queue.add(new Point(curr.x() - 1, curr.y() - 1));
-                    queue.add(new Point(curr.x(), curr.y() - 1));
-                    queue.add(new Point(curr.x() + 1, curr.y() - 1));
-
-                    queue.add(new Point(curr.x() - 1, curr.y()));
-                    queue.add(new Point(curr.x() + 1, curr.y()));
-
-                    queue.add(new Point(curr.x() - 1, curr.y() + 1));
-                    queue.add(new Point(curr.x(), curr.y() + 1));
-                    queue.add(new Point(curr.x() + 1, curr.y() + 1));
-                }
-                else {
-                    int newLevel = grid.getOrDefault(curr, 0) + 1;
-                    grid.put(curr, newLevel);
-                    if (newLevel > 9) {
-                        queue.add(curr);
-                    }
-                }
-            }
-
-            printGrid(grid, step);
-        }
+        final int countFlashes = countFlashes(grid, 10);
 
         // Then
+        System.out.println("The total count of flashes is " + countFlashes);
     }
 
     @Test
@@ -84,8 +34,11 @@ public class Day11Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
+        final Map<Point, Integer> grid = initGrid(lines);
+        final int countFlashes = countFlashes(grid, 100);
 
         // Then
+        System.out.println("The total count of flashes is " + countFlashes);
     }
 
     @Test
@@ -94,8 +47,11 @@ public class Day11Test extends AbstractTestBase {
         final List<String> lines = readLines(samplePuzzleInputResource);
 
         // When
+        final Map<Point, Integer> grid = initGrid(lines);
+        final int stepNo = stepNoWhenSynced(grid);
 
         // Then
+        System.out.println("The flashes are all synced at step " + stepNo);
     }
 
     @Test
@@ -104,11 +60,15 @@ public class Day11Test extends AbstractTestBase {
         final List<String> lines = readLines(puzzleInputResource);
 
         // When
+        final Map<Point, Integer> grid = initGrid(lines);
+        final int stepNo = stepNoWhenSynced(grid);
 
         // Then
+        System.out.println("The flashes are all synced at step " + stepNo);
     }
 
-    private record Point(int x, int y) {}
+    private record Point(int x, int y) {
+    }
 
     private static Map<Point, Integer> initGrid(final List<String> lines) {
         final Map<Point, Integer> grid = new HashMap<>();
@@ -127,14 +87,85 @@ public class Day11Test extends AbstractTestBase {
         return grid;
     }
 
-    private static void printGrid(final Map<Point, Integer> grid, int step) {
-        System.out.println("Step: " + step);
-        for (int row = 0; row < 10; row++) {
-            for (int col = 0; col < 10; col++) {
+    private static void printGrid(final Map<Point, Integer> grid) {
+        int maxX = grid.keySet().stream().mapToInt(Point::x).max().orElseThrow(IllegalStateException::new);
+        int maxY = grid.keySet().stream().mapToInt(Point::y).max().orElseThrow(IllegalStateException::new);
+
+        for (int row = 0; row < maxY; row++) {
+            for (int col = 0; col < maxX; col++) {
                 System.out.print(grid.get(new Point(col, row)));
             }
             System.out.println();
         }
         System.out.println();
+    }
+
+    private enum MODE { STOP_WHEN_IN_SYNC, STOP_AFTER_STEPS }
+
+    private static int countFlashes(final Map<Point, Integer> grid, final int totalSteps) {
+        return performSteps(grid, totalSteps, MODE.STOP_AFTER_STEPS);
+    }
+
+    private static int stepNoWhenSynced(final Map<Point, Integer> grid) {
+        return performSteps(grid, Integer.MAX_VALUE, MODE.STOP_WHEN_IN_SYNC);
+    }
+
+    private static int performSteps(final Map<Point, Integer> grid, final int totalSteps, final MODE mode) {
+        int totalFlashes = 0;
+
+        for (int step = 1; step <= totalSteps; step++) {
+            final Queue<Point> flashQueue = new LinkedList<>();
+
+            // increase all levels by '1'
+            grid.keySet().forEach(p -> {
+                int newLevel = grid.getOrDefault(p, 0) + 1;
+                grid.put(p, newLevel);
+                if (newLevel > 9) {
+                    flashQueue.add(p);
+                }
+            });
+
+            final Set<Point> flashed = new HashSet<>(flashQueue);
+
+            // handle flashes
+            while (!flashQueue.isEmpty()) {
+                Point curr = flashQueue.poll(); // remove from queue
+                List<Point> neighbors = neighborsOf(curr);
+
+                neighbors.stream()
+                        .filter(grid::containsKey)
+                        .forEach(p -> {
+                            int newLevel = grid.getOrDefault(p, 0) + 1;
+                            grid.put(p, newLevel);
+                            if (newLevel > 9 && !flashed.contains(p)) {
+                                flashQueue.add(p);
+                                flashed.add(p);
+                            }
+                        });
+            }
+
+            for (Point p : flashed) {
+                grid.put(p, 0);
+                totalFlashes++;
+            }
+
+            if (mode == MODE.STOP_WHEN_IN_SYNC && grid.keySet().size() == flashed.size()) {
+                return step;
+            }
+        }
+
+        return totalFlashes;
+    }
+
+    private static List<Point> neighborsOf(final Point centre) {
+        Point nw = new Point(centre.x() - 1, centre.y() - 1);
+        Point n = new Point(centre.x(), centre.y() - 1);
+        Point ne = new Point(centre.x() + 1, centre.y() - 1);
+        Point w = new Point(centre.x() - 1, centre.y());
+        Point e = new Point(centre.x() + 1, centre.y());
+        Point sw = new Point(centre.x() - 1, centre.y() + 1);
+        Point s = new Point(centre.x(), centre.y() + 1);
+        Point se = new Point(centre.x() + 1, centre.y() + 1);
+        return List.of(nw, n, ne, w, e, sw, s, se);
     }
 }
